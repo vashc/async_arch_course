@@ -1,6 +1,19 @@
 Awesome Task Exchange System
 ===
 
+## Запуск
+Для запуска можно воспользоваться
+```makefile
+make run
+```
+
+Для остановки работы
+```makefile
+make stop
+```
+
+В директории tests лежит коллекция с ручками для Postman.
+
 <details open>
    <summary><strong>Составляющие требований</strong></summary>
 

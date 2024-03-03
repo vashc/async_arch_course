@@ -1,0 +1,61 @@
+version: '3'
+
+services:
+
+  postgres_auth:
+    image: postgres:14
+    hostname: postgres_auth
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: main
+    ports:
+      - '5434:5432'
+
+  postgres_task_tracker:
+    image: postgres:14
+    hostname: postgres_task_tracker
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: main
+    ports:
+      - '5433:5432'
+
+  event_bus:
+    image: rabbitmq:3.13.0-management
+    hostname: event_bus
+    restart: always
+    environment:
+      - RABBITMQ_DEFAULT_USER=user
+      - RABBITMQ_DEFAULT_PASS=pass
+    volumes:
+      - ./event_bus/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./event_bus/definitions.json:/etc/rabbitmq/definitions.json:ro
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+
+  auth:
+    build:
+      context: .
+      dockerfile: services/auth/Dockerfile
+    restart: on-failure
+    depends_on:
+      - postgres_auth
+      - event_bus
+    ports:
+      - '8000:8000'
+
+  task_tracker:
+    build:
+      context: .
+      dockerfile: services/task_tracker/Dockerfile
+    restart: on-failure
+    depends_on:
+      - postgres_task_tracker
+      - event_bus
+    ports:
+      - '8001:8001'
