@@ -1,0 +1,118 @@
+{
+  "queues": [
+    {
+      "name": "task_tracker.in",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic"
+      }
+    },
+    {
+      "name": "accounting.in",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic"
+      }
+    },
+    {
+      "name": "analytics.in",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic"
+      }
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "auth.out",
+      "vhost": "/",
+      "type": "fanout",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "task_tracker.out",
+      "vhost": "/",
+      "type": "fanout",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "bindings": [
+    {
+      "source": "auth.out",
+      "vhost": "/",
+      "destination": "task_tracker.in",
+      "destination_type": "queue",
+      "routing_key": "task_tracker.in",
+      "arguments": {}
+    },
+    {
+      "source": "auth.out",
+      "vhost": "/",
+      "destination": "accounting.in",
+      "destination_type": "queue",
+      "routing_key": "accounting.in",
+      "arguments": {}
+    },
+    {
+      "source": "auth.out",
+      "vhost": "/",
+      "destination": "analytics.in",
+      "destination_type": "queue",
+      "routing_key": "analytics.in",
+      "arguments": {}
+    },
+    {
+      "source": "task_tracker.out",
+      "vhost": "/",
+      "destination": "accounting.in",
+      "destination_type": "queue",
+      "routing_key": "accounting.in",
+      "arguments": {}
+    },
+    {
+      "source": "task_tracker.out",
+      "vhost": "/",
+      "destination": "analytics.in",
+      "destination_type": "queue",
+      "routing_key": "analytics.in",
+      "arguments": {}
+    }
+  ],
+  "users": [
+    {
+      "name": "user",
+      "password_hash": "2hvUZmjYVKcGdMahc3FIvNtiGWnKxX0ZOvQKi3/wAlSyqz3o",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": [
+        "administrator"
+      ],
+      "limits": {}
+    }
+  ],
+  "vhosts": [
+    {
+      "name": "/"
+    }
+  ],
+  "permissions": [
+    {
+      "user": "user",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ]
+}
