@@ -13,11 +13,10 @@ import (
 )
 
 type Service struct {
-	config     *Config
-	server     *http.Server
-	storage    *Storage
-	client     *RabbitClient
-	httpClient *http.Client
+	config  *Config
+	server  *http.Server
+	storage *Storage
+	client  *RabbitClient
 
 	*chi.Mux
 }
@@ -64,8 +63,8 @@ func (rc *RabbitConfig) uri() string {
 }
 
 type API struct {
-	Host string `envconfig:"TASK_TRACKER_HOST" required:"true" default:"0.0.0.0"`
-	Port string `envconfig:"TASK_TRACKER_PORT" required:"true" default:"8001"`
+	Host string `envconfig:"ACCOUNTING_HOST" required:"true" default:"0.0.0.0"`
+	Port string `envconfig:"ACCOUNTING_PORT" required:"true" default:"8002"`
 }
 
 type Config struct {
@@ -74,12 +73,6 @@ type Config struct {
 	API      API
 
 	JWTSecret string `envconfig:"JWT_SECRET" required:"true" default:"some_default_jwt_secret"`
-
-	SchemaRegistryHost string `envconfig:"SCHEMA_REGISTRY_HOST" required:"true" default:"http://localhost:8010"`
-}
-
-type TaskCreateResponse struct {
-	ID uuid.UUID `json:"id"`
 }
 
 type Response struct {
@@ -100,24 +93,19 @@ type User struct {
 	Role      Role      `json:"role"`
 }
 
-type Task struct {
-	ID          uuid.UUID  `json:"id"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
-	JiraID      string     `json:"jira_id"`
-	Title       string     `json:"title"`
-	Description string     `json:"description"`
-	Status      TaskStatus `json:"status"`
-	AuthorID    uuid.UUID  `json:"author_id"`
-	AssigneeID  uuid.UUID  `json:"assignee_id"`
+type Operation struct {
+	ID        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	Amount    int       `json:"amount"`
+	UserID    uuid.UUID `json:"user_id"`
 }
 
-type TaskCost struct {
-	ID           uuid.UUID `json:"id"`
-	CreatedAt    time.Time `json:"created_at"`
-	TaskID       uuid.UUID `json:"task_id"`
-	AssignCost   int       `json:"assign_cost"`
-	CompleteCost int       `json:"complete_cost"`
+type Account struct {
+	ID        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Amount    int       `json:"amount"`
+	UserID    uuid.UUID `json:"user_id"`
 }
 
 type Worker struct {

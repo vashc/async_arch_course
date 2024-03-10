@@ -8,12 +8,12 @@ type UserCreatedIn struct {
 	Role     Role      `json:"role"`
 }
 
-type TaskAssignedOut struct {
+type TaskAssignedIn struct {
 	Amount     int       `json:"amount"`
 	AssigneeID uuid.UUID `json:"assignee_id"`
 }
 
-type TaskCompletedOut struct {
+type TaskCompletedIn struct {
 	Amount     int       `json:"amount"`
 	AssigneeID uuid.UUID `json:"assignee_id"`
 }

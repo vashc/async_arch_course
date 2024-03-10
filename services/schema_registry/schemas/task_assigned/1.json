@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Task assigned",
+  "description": "JSON schema for task assigned event (version 1)",
+  "type": "object",
+
+  "properties": {
+    "amount": {
+      "description": "Price for assigning task",
+      "type": "integer"
+    },
+    "assignee_id": {
+      "description": "Unique user ID the task is assigned to",
+      "type": "string"
+    }
+  },
+
+  "required": [
+    "amount",
+    "assignee_id"
+  ]
+}

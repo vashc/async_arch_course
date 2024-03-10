@@ -4,7 +4,6 @@ const (
 	dbDriver = "postgres"
 
 	requestParamUserID = "user_id"
-	requestParamTaskID = "task_id"
 )
 
 const (
@@ -19,18 +18,13 @@ const (
 type Role string
 
 const (
-	workerRole  Role = "worker"
-	_           Role = "accountant"
-	managerRole Role = "manager"
-	adminRole   Role = "admin"
+	_              Role = "worker"
+	accountantRole Role = "accountant"
+	_              Role = "manager"
+	adminRole      Role = "admin"
 )
 
 type TaskStatus string
-
-const (
-	createdStatus   TaskStatus = "created"
-	completedStatus TaskStatus = "completed"
-)
 
 const (
 	RabbitProtocol    = "amqp"
@@ -39,8 +33,8 @@ const (
 	RabbitExclusive   = false
 	RabbitNoWait      = false
 	RabbitNoLocal     = false
-	RabbitExchange    = "task_tracker.out"
-	RabbitQueue       = "task_tracker.in"
+	RabbitExchange    = "accounting.out"
+	RabbitQueue       = "accounting.in"
 	RabbitMandatory   = false
 	RabbitImmediate   = false
 	RabbitContentType = "text/plain"

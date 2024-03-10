@@ -1,9 +1,11 @@
 package internal
 
 import (
+	"bytes"
 	"context"
 	"log"
 	"math/rand"
+	"regexp"
 	"time"
 
 	"encoding/json"
@@ -17,18 +19,24 @@ import (
 	"github.com/google/uuid"
 )
 
-func NewService(config *Config, storage *Storage, client *RabbitClient) *Service {
+func NewService(
+	config *Config,
+	storage *Storage,
+	client *RabbitClient,
+	httpClient *http.Client,
+) *Service {
 	server := &http.Server{
 		Addr:              fmt.Sprintf("%s:%s", config.API.Host, config.API.Port),
 		ReadHeaderTimeout: time.Second * 5,
 	}
 
 	service := &Service{
-		config:  config,
-		server:  server,
-		storage: storage,
-		client:  client,
-		Mux:     chi.NewRouter(),
+		config:     config,
+		server:     server,
+		storage:    storage,
+		client:     client,
+		httpClient: httpClient,
+		Mux:        chi.NewRouter(),
 	}
 
 	service.server.Handler = service
@@ -75,6 +83,7 @@ func (s *Service) Stop() error {
 	return nil
 }
 
+//nolint:funlen // It should be separated
 func (s *Service) createTaskHandler() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		task := new(Task)
@@ -88,6 +97,13 @@ func (s *Service) createTaskHandler() func(w http.ResponseWriter, r *http.Reques
 
 		task.Status = createdStatus
 		task.AuthorID, _ = r.Context().Value(requestParamUserID).(uuid.UUID)
+
+		re := regexp.MustCompile(`(?P<prefix>\[[a-zA-Z0-9]*\])(?P<title>.*)`)
+		matches := re.FindAllStringSubmatch(task.Title, -1)
+		for i := range matches {
+			task.JiraID = matches[i][1]
+			task.Title = matches[i][2]
+		}
 
 		// Get a worker for the task randomly
 		users, err := s.storage.GetUsersByRole(workerRole)
@@ -115,14 +131,67 @@ func (s *Service) createTaskHandler() func(w http.ResponseWriter, r *http.Reques
 			return
 		}
 
-		// Create exchange message in a queue
-		taskCreated := TaskCreatedOut{
-			Description: task.Description,
-			Status:      task.Status,
-			AssigneeID:  task.AssigneeID,
+		taskCost := &TaskCost{
+			TaskID: task.ID,
+			//nolint:gosec // It's ok for now
+			AssignCost: 10 + rand.Intn(11),
+			//nolint:gosec // It's ok for now
+			CompleteCost: 20 + rand.Intn(21),
 		}
 
-		err = s.client.Publish("", taskCreatedEventType, taskCreated)
+		if err = s.storage.CreateTaskCost(taskCost); err != nil {
+			log.Printf("storage.CreateTaskCost: %s\n", err.Error())
+			code := http.StatusInternalServerError
+			http.Error(w, http.StatusText(code), code)
+			return
+		}
+
+		// Create exchange message in a queue
+		taskAssigned := TaskAssignedOut{
+			Amount:     taskCost.AssignCost,
+			AssigneeID: task.AssigneeID,
+		}
+
+		taskAssignedBody, err := json.Marshal(taskAssigned)
+		if err != nil {
+			log.Printf("json.Marshal: %s\n", err.Error())
+			code := http.StatusInternalServerError
+			http.Error(w, http.StatusText(code), code)
+			return
+		}
+
+		//nolint:noctx // Context is not used as for now
+		request, err := http.NewRequest(
+			http.MethodPost,
+			fmt.Sprintf(
+				"%s/validate/%s/event",
+				s.config.SchemaRegistryHost,
+				taskAssignedEventType,
+			),
+			bytes.NewReader(taskAssignedBody),
+		)
+		if err != nil {
+			log.Printf("http.NewRequest: %s\n", err.Error())
+			code := http.StatusInternalServerError
+			http.Error(w, http.StatusText(code), code)
+			return
+		}
+
+		response, err := s.httpClient.Do(request)
+		if err != nil {
+			log.Printf("httpClient.Do: %s\n", err.Error())
+			code := http.StatusInternalServerError
+			http.Error(w, http.StatusText(code), code)
+			return
+		}
+		if response.StatusCode != http.StatusOK {
+			code := http.StatusBadRequest
+			http.Error(w, http.StatusText(code), code)
+			return
+		}
+		_ = response.Body.Close()
+
+		err = s.client.Publish("", taskAssignedEventType, taskAssigned)
 		if err != nil {
 			log.Printf("client.Publish: %s\n", err.Error())
 			code := http.StatusInternalServerError
@@ -172,8 +241,17 @@ func (s *Service) completeTaskHandler() func(w http.ResponseWriter, r *http.Requ
 			return
 		}
 
+		taskCost, err := s.storage.GetTaskCostByTaskID(taskID)
+		if err != nil {
+			log.Printf("storage.GetTaskCostByTaskID: %s\n", err.Error())
+			code := http.StatusInternalServerError
+			http.Error(w, http.StatusText(code), code)
+			return
+		}
+
 		// Create exchange message in a queue
 		taskCompleted := TaskCompletedOut{
+			Amount:     taskCost.CompleteCost,
 			AssigneeID: task.AssigneeID,
 		}
 
@@ -292,8 +370,18 @@ func (s *Service) assignTasksHandler() func(w http.ResponseWriter, r *http.Reque
 				return
 			}
 
+			var taskCost *TaskCost
+			taskCost, err = s.storage.GetTaskCostByTaskID(task.ID)
+			if err != nil {
+				log.Printf("storage.GetTaskCostByTaskID: %s\n", err.Error())
+				code := http.StatusInternalServerError
+				http.Error(w, http.StatusText(code), code)
+				return
+			}
+
 			// Create exchange message in a queue
 			taskAssigned := TaskAssignedOut{
+				Amount:     taskCost.AssignCost,
 				AssigneeID: task.AssigneeID,
 			}
 
