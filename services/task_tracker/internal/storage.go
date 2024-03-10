@@ -107,8 +107,8 @@ WHERE id = ?;
 
 func (s *Storage) CreateTask(task *Task) error {
 	query := `
-INSERT INTO tasks(description, status, author_id, assignee_id)
-VALUES (?, ?, ?, ?)
+INSERT INTO tasks(jira_id, title, description, status, author_id, assignee_id)
+VALUES (?, ?, ?, ?, ?, ?)
 RETURNING id;
 `
 
@@ -120,6 +120,8 @@ RETURNING id;
 
 	err = tx.InsertBySql(
 		query,
+		task.JiraID,
+		task.Title,
 		task.Description,
 		task.Status,
 		task.AuthorID,
@@ -270,4 +272,51 @@ WHERE assignee_id = ?;
 	}
 
 	return tasks, nil
+}
+
+func (s *Storage) CreateTaskCost(taskCost *TaskCost) error {
+	query := `
+INSERT INTO tasks_costs(task_id, assign_cost, complete_cost)
+VALUES (?, ?, ?)
+RETURNING id;
+`
+
+	tx, err := s.sess.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.RollbackUnlessCommitted()
+
+	err = tx.InsertBySql(
+		query,
+		taskCost.TaskID,
+		taskCost.AssignCost,
+		taskCost.CompleteCost,
+	).Load(taskCost)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (s *Storage) GetTaskCostByTaskID(id uuid.UUID) (taskCost *TaskCost, err error) {
+	query := `
+SELECT *
+FROM tasks_costs
+WHERE task_id = ?;
+`
+
+	tx, err := s.sess.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.RollbackUnlessCommitted()
+
+	err = tx.SelectBySql(query, id).LoadOne(&taskCost)
+	if err != nil {
+		return nil, err
+	}
+
+	return taskCost, nil
 }

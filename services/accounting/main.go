@@ -8,47 +8,41 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
-	tasktracker "github.com/vashc/async_arch_course/services/task_tracker/internal"
+	accounting "github.com/vashc/async_arch_course/services/accounting/internal"
 )
 
 func main() {
 	// Create config, e.g. via environment variables
-	config, err := tasktracker.NewConfig()
+	config, err := accounting.NewConfig()
 	if err != nil {
 		log.Fatalf("task_tracker.NewConfig error: %s", err.Error())
 	}
 
 	// Initialize storage
-	storage, err := tasktracker.NewStorage(config)
+	storage, err := accounting.NewStorage(config)
 	if err != nil {
 		log.Fatalf("task_tracker.NewStorage error: %s", err.Error())
 	}
 
 	// Initialize Rabbit client and connection
-	client, err := tasktracker.NewClient(config)
+	client, err := accounting.NewClient(config)
 	if err != nil {
 		log.Fatalf("task_tracker.NewClient error: %s", err.Error())
 	}
 	defer client.Close()
 
-	// Initialize http client for requests
-	httpClient := &http.Client{
-		Timeout: 1 * time.Second,
-	}
-
 	// Create new chi application service
-	service := tasktracker.NewService(config, storage, client, httpClient)
+	service := accounting.NewService(config, storage, client)
 
 	// Instantiate routes
 	service.InstantiateRoutes()
 
 	// Start worker
 	ctx, cancel := context.WithCancel(context.Background())
-	worker := tasktracker.NewWorker(config, storage, client)
+	worker := accounting.NewWorker(config, storage, client)
 	go func() {
-		err = worker.Process(ctx, tasktracker.RabbitQueue)
+		err = worker.Process(ctx, accounting.RabbitQueue)
 		if err != nil {
 			log.Fatalf("worker.Process error: %s", err.Error())
 		}

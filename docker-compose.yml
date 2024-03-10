@@ -59,3 +59,25 @@ services:
       - event_bus
     ports:
       - '8001:8001'
+
+  accounting:
+    build:
+      context: .
+      dockerfile: services/accounting/Dockerfile
+    restart: on-failure
+    depends_on:
+      - postgres_task_tracker
+      - event_bus
+    ports:
+      - '8002:8002'
+
+  schema_registry:
+    build:
+      context: .
+      dockerfile: services/schema_registry/Dockerfile
+    restart: on-failure
+    depends_on:
+      - postgres_task_tracker
+      - event_bus
+    ports:
+      - '8010:8010'
